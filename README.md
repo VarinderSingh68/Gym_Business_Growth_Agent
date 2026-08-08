@@ -2,6 +2,24 @@
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+## Deploying to Render
+
+This app deploys as a **single Render Web Service** — the Node server in
+`server/index.js` serves the built React app *and* the `/api/*` routes from
+the same origin, so there's no separate static site and no cross-origin
+CORS setup to manage.
+
+- **Build Command:** `npm install && npm run build`
+- **Start Command:** `npm run server`
+- **Environment variables:** see `server/.env.example` for the full list
+  (`ADMIN_USERNAME`, `ADMIN_PASSWORD`, `FRONTEND_URL`, `GOOGLE_CLIENT_ID`,
+  `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `SMTP_*`, `NODE_ENV=production`).
+  Do **not** set `PORT` — Render assigns it and the server reads it automatically.
+- **Data persistence:** `server/data/*.json` (admin credentials, member
+  accounts, gym content) lives on local disk. Without a Render persistent
+  Disk attached at `server/data`, this resets on every deploy/restart —
+  attach a Disk if member accounts need to survive redeploys.
+
 ## Available Scripts
 
 In the project directory, you can run:

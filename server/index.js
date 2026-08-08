@@ -6,11 +6,27 @@ const nodemailer = require('nodemailer');
 
 loadEnvFile(path.join(__dirname, '.env'));
 
-const PORT = Number(process.env.API_PORT || 4000);
+const PORT = Number(process.env.PORT || process.env.API_PORT || 4000);
+const HOST = process.env.HOST || '0.0.0.0';
 const DATA_DIR = path.join(__dirname, 'data');
 const STORE_PATH = path.join(DATA_DIR, 'store.json');
 const ADMIN_PATH = path.join(DATA_DIR, 'admin.json');
 const USERS_PATH = path.join(DATA_DIR, 'users.json');
+const BUILD_DIR = path.join(__dirname, '..', 'build');
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.txt': 'text/plain; charset=utf-8',
+  '.map': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json',
+};
 const SESSION_COOKIE = 'volt_admin_session';
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const USER_SESSION_COOKIE = 'volt_user_session';
@@ -284,14 +300,24 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (parts[0] === 'api') {
+      sendJson(req, res, 404, { message: 'Not found.' }, commonHeaders);
+      return;
+    }
+
+    if (req.method === 'GET' || req.method === 'HEAD') {
+      serveStatic(req, res, url);
+      return;
+    }
+
     sendJson(req, res, 404, { message: 'Not found.' }, commonHeaders);
   } catch (error) {
     sendJson(req, res, error.status || 500, { message: error.message || 'Server error.' }, commonHeaders);
   }
 });
 
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`Secure gym API running at http://127.0.0.1:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`Volt Fitness server running at http://${HOST}:${PORT}`);
 });
 
 async function handleResource(req, res, headers, resourceName, id) {
@@ -356,7 +382,7 @@ async function handleResource(req, res, headers, resourceName, id) {
 
 function login(req, usernameInput, password) {
   const username = String(usernameInput || '').trim();
-  const ip = req.socket.remoteAddress || 'unknown';
+  const ip = getClientIp(req);
   const lock = loginLocks.get(ip) || { attempts: 0, lockedUntil: 0 };
 
   if (lock.lockedUntil && lock.lockedUntil > Date.now()) {
@@ -450,7 +476,7 @@ function registerUser(body) {
 
 function loginUser(req, emailInput, password) {
   const email = String(emailInput || '').trim().toLowerCase();
-  const ip = req.socket.remoteAddress || 'unknown';
+  const ip = getClientIp(req);
   const lock = userLoginLocks.get(ip) || { attempts: 0, lockedUntil: 0 };
 
   if (lock.lockedUntil && lock.lockedUntil > Date.now()) {
@@ -823,9 +849,51 @@ function sendJson(req, res, status, data, headers = {}) {
   res.end(JSON.stringify(data));
 }
 
+function serveStatic(req, res, url) {
+  if (!fs.existsSync(BUILD_DIR)) {
+    res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Frontend build not found. Run "npm run build" before starting the server in production.');
+    return;
+  }
+
+  const requestedPath = path.normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, '');
+  let filePath = path.join(BUILD_DIR, requestedPath);
+
+  if (!filePath.startsWith(BUILD_DIR)) {
+    filePath = path.join(BUILD_DIR, 'index.html');
+  }
+
+  if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+    filePath = path.join(BUILD_DIR, 'index.html');
+  }
+
+  const ext = path.extname(filePath).toLowerCase();
+  fs.readFile(filePath, (error, content) => {
+    if (error) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Not found.');
+      return;
+    }
+    const cacheControl = ext === '.html' ? 'no-cache' : 'public, max-age=31536000, immutable';
+    res.writeHead(200, {
+      'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
+      'Cache-Control': cacheControl,
+    });
+    res.end(content);
+  });
+}
+
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.socket.remoteAddress || 'unknown';
+}
+
 function corsHeaders(req) {
   const origin = req.headers.origin;
-  const allowed = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  const allowed = ['http://localhost:3000', 'http://127.0.0.1:3000', process.env.FRONTEND_URL].filter(Boolean);
   if (!origin || !allowed.includes(origin)) {
     return {};
   }

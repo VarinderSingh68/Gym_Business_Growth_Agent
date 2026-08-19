@@ -1858,34 +1858,7 @@ p {
   background: rgba(33, 232, 255, 0.1);
 }
 
-.admin-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
-  padding: 16px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.055);
-}
-
-.admin-topbar strong {
-  color: #fff;
-  font-size: 1.15rem;
-}
-
-.admin-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 12px;
-  margin: 0 0 34px;
-}
-
-.admin-tabs button,
-.ghost-action,
-.record-actions button {
+.ghost-action {
   min-height: 42px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -1896,104 +1869,10 @@ p {
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
-.admin-tabs button {
-  padding: 0 22px;
-}
-
-.admin-tabs button:hover,
-.admin-tabs button.active,
-.ghost-action:hover,
-.record-actions button:hover {
+.ghost-action:hover {
   border-color: rgba(33, 232, 255, 0.7);
   box-shadow: var(--shadow-cyan);
   transform: translateY(-2px);
-}
-
-.admin-section {
-  display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
-  gap: 24px;
-  align-items: start;
-}
-
-.admin-section.single {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.admin-dashboard {
-  display: grid;
-  gap: 24px;
-}
-
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.dashboard-card,
-.admin-tool-card {
-  padding: 24px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background:
-    radial-gradient(circle at 20% 12%, rgba(33, 232, 255, 0.13), transparent 12rem),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.025)),
-    rgba(16, 21, 23, 0.82);
-  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.34), inset 0 -3px 0 rgba(255, 123, 34, 0.14);
-}
-
-.dashboard-card {
-  display: grid;
-  gap: 10px;
-  min-height: 132px;
-  align-content: center;
-}
-
-.dashboard-card span,
-.admin-tool-card p {
-  color: var(--muted);
-  line-height: 1.55;
-}
-
-.dashboard-card strong {
-  color: var(--cyan);
-  font-size: clamp(2.2rem, 4vw, 4rem);
-  line-height: 0.95;
-  text-shadow: var(--shadow-cyan);
-}
-
-.admin-tool-card {
-  min-height: 100%;
-}
-
-.admin-tool-card h2 {
-  margin: 6px 0 12px;
-  color: #fff;
-  font-size: 2rem;
-  line-height: 1.05;
-  text-transform: uppercase;
-}
-
-.admin-tool-card .ghost-action {
-  margin-top: 18px;
-}
-
-.export-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.admin-card {
-  min-height: 420px;
-  padding: 28px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.025)),
-    rgba(16, 21, 23, 0.82);
-  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.42), inset 0 -3px 0 rgba(33, 232, 255, 0.14);
 }
 
 .admin-heading {
@@ -2125,44 +2004,6 @@ p {
   margin: 0;
   color: var(--muted);
   line-height: 1.45;
-}
-
-.record-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-.record-actions button {
-  min-height: 36px;
-  padding: 0 13px;
-  font-size: 0.72rem;
-}
-
-.record-actions button:last-child {
-  border-color: rgba(255, 123, 34, 0.46);
-}
-
-.admin-thumb,
-.admin-avatar {
-  display: block;
-  width: 92px;
-  height: 74px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.3)),
-    var(--image) center / cover no-repeat;
-}
-
-video.admin-thumb {
-  object-fit: cover;
-}
-
-.admin-avatar {
-  height: 92px;
 }
 
 .empty-panel {
@@ -2306,14 +2147,8 @@ video.admin-thumb {
   }
 
   .big-moment,
-  .zone-grid,
-  .admin-section,
-  .admin-section.single {
+  .zone-grid {
     grid-template-columns: 1fr;
-  }
-
-  .dashboard-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .trainer-section.compact .trainer-grid {
@@ -2444,7 +2279,6 @@ video.admin-thumb {
   }
 
   .hero-stat-grid,
-  .dashboard-grid,
   .trainer-grid,
   .trainer-section.compact .trainer-grid,
   .mini-trainer-row,
@@ -2485,13 +2319,8 @@ video.admin-thumb {
   }
 
   .admin-form,
-  .admin-record,
-  .media-record {
+  .admin-record {
     grid-template-columns: 1fr;
-  }
-
-  .admin-card {
-    padding: 20px;
   }
 
   .admin-login-card {
@@ -2500,10 +2329,6 @@ video.admin-thumb {
 
   .admin-login-card h1 {
     font-size: 2.2rem;
-  }
-
-  .record-actions {
-    justify-content: flex-start;
   }
 
   .program-media {

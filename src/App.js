@@ -334,6 +334,12 @@ function App() {
   const [attendance, setAttendance] = useState([]);
   const [payments, setPayments] = useState([]);
   const [progressRecords, setProgressRecords] = useState([]);
+  const [equipment, setEquipment] = useState([]);
+  const [lockers, setLockers] = useState([]);
+  const [memberships, setMemberships] = useState([]);
+  const [inventory, setInventory] = useState([]);
+  const [dietWorkouts, setDietWorkouts] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
   const [adminSession, setAdminSession] = useState(null);
   const [userSession, setUserSession] = useState(null);
 
@@ -389,6 +395,10 @@ function App() {
     apiRequest('/api/settings')
       .then((data) => setSettings((data.settings || [defaultSettings])[0] || defaultSettings))
       .catch(() => setSettings(defaultSettings));
+
+    apiRequest('/api/announcements')
+      .then((data) => setAnnouncements(data.announcements || []))
+      .catch(() => setAnnouncements([]));
   }, []);
 
   useEffect(() => {
@@ -399,6 +409,11 @@ function App() {
       setAttendance([]);
       setPayments([]);
       setProgressRecords([]);
+      setEquipment([]);
+      setLockers([]);
+      setMemberships([]);
+      setInventory([]);
+      setDietWorkouts([]);
       return;
     }
 
@@ -425,6 +440,30 @@ function App() {
     apiRequest('/api/progress')
       .then((data) => setProgressRecords(data.progress || []))
       .catch(() => setProgressRecords([]));
+
+    apiRequest('/api/equipment')
+      .then((data) => setEquipment(data.equipment || []))
+      .catch(() => setEquipment([]));
+
+    apiRequest('/api/lockers')
+      .then((data) => setLockers(data.lockers || []))
+      .catch(() => setLockers([]));
+
+    apiRequest('/api/memberships')
+      .then((data) => setMemberships(data.memberships || []))
+      .catch(() => setMemberships([]));
+
+    apiRequest('/api/inventory')
+      .then((data) => setInventory(data.inventory || []))
+      .catch(() => setInventory([]));
+
+    apiRequest('/api/dietWorkouts')
+      .then((data) => setDietWorkouts(data.dietWorkouts || []))
+      .catch(() => setDietWorkouts([]));
+
+    apiRequest('/api/announcements')
+      .then((data) => setAnnouncements(data.announcements || []))
+      .catch(() => setAnnouncements([]));
   }, [adminSession]);
 
   useEffect(() => {
@@ -578,6 +617,18 @@ function App() {
   const deletePaymentRecord = useCallback((id) => deleteAdminItem('payments', id, setPayments), []);
   const saveProgressRecord = useCallback((item, editingId) => saveAdminItem('progress', item, editingId, setProgressRecords), []);
   const deleteProgressRecord = useCallback((id) => deleteAdminItem('progress', id, setProgressRecords), []);
+  const saveEquipmentRecord = useCallback((item, editingId) => saveAdminItem('equipment', item, editingId, setEquipment), []);
+  const deleteEquipmentRecord = useCallback((id) => deleteAdminItem('equipment', id, setEquipment), []);
+  const saveLockerRecord = useCallback((item, editingId) => saveAdminItem('lockers', item, editingId, setLockers), []);
+  const deleteLockerRecord = useCallback((id) => deleteAdminItem('lockers', id, setLockers), []);
+  const saveMembershipRecord = useCallback((item, editingId) => saveAdminItem('memberships', item, editingId, setMemberships), []);
+  const deleteMembershipRecord = useCallback((id) => deleteAdminItem('memberships', id, setMemberships), []);
+  const saveInventoryRecord = useCallback((item, editingId) => saveAdminItem('inventory', item, editingId, setInventory), []);
+  const deleteInventoryRecord = useCallback((id) => deleteAdminItem('inventory', id, setInventory), []);
+  const saveDietWorkoutRecord = useCallback((item, editingId) => saveAdminItem('dietWorkouts', item, editingId, setDietWorkouts), []);
+  const deleteDietWorkoutRecord = useCallback((id) => deleteAdminItem('dietWorkouts', id, setDietWorkouts), []);
+  const saveAnnouncementRecord = useCallback((item, editingId) => saveAdminItem('announcements', item, editingId, setAnnouncements), []);
+  const deleteAnnouncementRecord = useCallback((id) => deleteAdminItem('announcements', id, setAnnouncements), []);
   const saveSettingsRecord = useCallback(async (item) => {
     const editingId = item.id || settings.id || 'settings-main';
     const data = await apiRequest(`/api/settings/${editingId}`, {
@@ -620,6 +671,12 @@ function App() {
     attendance,
     payments,
     progressRecords,
+    equipment,
+    lockers,
+    memberships,
+    inventory,
+    dietWorkouts,
+    announcements,
     adminSession,
     onAdminLogin: handleAdminLogin,
     onAdminLogout: handleAdminLogout,
@@ -655,6 +712,18 @@ function App() {
     deletePaymentRecord,
     saveProgressRecord,
     deleteProgressRecord,
+    saveEquipmentRecord,
+    deleteEquipmentRecord,
+    saveLockerRecord,
+    deleteLockerRecord,
+    saveMembershipRecord,
+    deleteMembershipRecord,
+    saveInventoryRecord,
+    deleteInventoryRecord,
+    saveDietWorkoutRecord,
+    deleteDietWorkoutRecord,
+    saveAnnouncementRecord,
+    deleteAnnouncementRecord,
   };
 
   return (

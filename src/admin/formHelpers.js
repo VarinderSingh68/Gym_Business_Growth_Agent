@@ -143,3 +143,83 @@ export function createProfileForm(username = 'admin') {
     newPassword: '',
   };
 }
+
+export function createEquipmentForm() {
+  return {
+    name: '',
+    category: 'Cardio',
+    serialNumber: '',
+    location: 'Engine Room',
+    purchaseDate: new Date().toISOString().slice(0, 10),
+    lastServiceDate: new Date().toISOString().slice(0, 10),
+    nextServiceDate: '',
+    status: 'Operational',
+    condition: 'Good',
+    notes: '',
+  };
+}
+
+export function createLockerForm() {
+  return {
+    lockerNumber: '',
+    zone: "Men's Locker Room",
+    size: 'Full Height',
+    assignedClient: 'Unassigned',
+    pinOrKey: '',
+    expiresAt: '',
+    status: 'Available',
+    notes: '',
+  };
+}
+
+export function createMembershipForm() {
+  return {
+    clientName: 'Walk-in',
+    plan: 'Standard',
+    startDate: new Date().toISOString().slice(0, 10),
+    endDate: '',
+    status: 'Active',
+    autoRenew: 'Yes',
+    paymentMethod: 'Credit Card',
+    notes: '',
+  };
+}
+
+export function createInventoryForm() {
+  return {
+    itemName: '',
+    sku: '',
+    category: 'Supplements',
+    price: '',
+    cost: '',
+    quantity: '0',
+    minStockAlert: '5',
+    status: 'In Stock',
+    supplier: '',
+    notes: '',
+  };
+}
+
+export function createDietWorkoutForm() {
+  return {
+    clientName: 'Walk-in',
+    trainer: 'Unassigned',
+    targetGoal: '',
+    dailyCalories: '',
+    macroSplit: '',
+    workoutSplit: '',
+    status: 'Active',
+    notes: '',
+  };
+}
+
+export function createAnnouncementForm() {
+  return {
+    title: '',
+    category: 'Facility Update',
+    targetAudience: 'All Members',
+    publishDate: new Date().toISOString().slice(0, 10),
+    status: 'Active',
+    content: '',
+  };
+}

@@ -4,16 +4,34 @@ import { downloadCsv } from '../../lib/api';
 import StatCard from '../components/StatCard';
 import EmptyState from '../components/EmptyState';
 
-function DashboardSection({ clients, contactRequests, leads, payments, trainers, navigateToSection }) {
+function DashboardSection({
+  clients = [],
+  contactRequests = [],
+  leads = [],
+  payments = [],
+  trainers = [],
+  memberships = [],
+  equipment = [],
+  lockers = [],
+  inventory = [],
+  navigateToSection,
+}) {
   const duePayments = payments.filter((payment) => ['Due', 'Overdue'].includes(payment.status)).length;
   const newEnquiries = contactRequests.filter((item) => (item.status || 'New') === 'New').length;
+  const activeMembers = memberships.filter((m) => (m.status || 'Active') === 'Active').length;
+  const maintenanceAlerts = equipment.filter((e) => ['Needs Maintenance', 'Under Repair', 'Critical'].includes(e.status) || e.condition === 'Critical').length;
+  const availableLockers = lockers.filter((l) => (l.status || 'Available') === 'Available').length;
+  const lowStockItems = inventory.filter((i) => i.status === 'Low Stock' || Number(i.quantity || 0) <= Number(i.minStockAlert || 5)).length;
 
   const metrics = [
-    { label: 'Clients', value: clients.length, icon: 'users', accent: 'cyan', section: 'clients' },
-    { label: 'New Enquiries', value: newEnquiries, icon: 'inbox', accent: 'orange', section: 'contacts' },
-    { label: 'Leads', value: leads.length, icon: 'target', accent: 'cyan', section: 'leads' },
+    { label: 'Total Clients', value: clients.length, icon: 'users', accent: 'cyan', section: 'clients' },
+    { label: 'Active Subscriptions', value: activeMembers, icon: 'card', accent: 'orange', section: 'memberships' },
     { label: 'Payments Due', value: duePayments, icon: 'card', accent: 'orange', section: 'payments' },
-    { label: 'Trainers', value: trainers.length, icon: 'person', accent: 'cyan', section: 'trainers' },
+    { label: 'Maintenance Alerts', value: maintenanceAlerts, icon: 'activity', accent: maintenanceAlerts > 0 ? 'orange' : 'cyan', section: 'equipment' },
+    { label: 'Available Lockers', value: availableLockers, icon: 'key', accent: 'cyan', section: 'lockers' },
+    { label: 'Low Stock Alerts', value: lowStockItems, icon: 'box', accent: lowStockItems > 0 ? 'orange' : 'cyan', section: 'inventory' },
+    { label: 'New Enquiries', value: newEnquiries, icon: 'inbox', accent: 'orange', section: 'contacts' },
+    { label: 'Coaches / Staff', value: trainers.length, icon: 'person', accent: 'cyan', section: 'trainers' },
   ];
 
   return (
@@ -41,6 +59,26 @@ function DashboardSection({ clients, contactRequests, leads, payments, trainers,
               <Icon name="download" />
               Clients CSV
             </button>
+            <button className="ghost-action" onClick={() => downloadCsv('subscriptions.csv', memberships)} type="button">
+              <Icon name="download" />
+              Subscriptions CSV
+            </button>
+            <button className="ghost-action" onClick={() => downloadCsv('equipment.csv', equipment)} type="button">
+              <Icon name="download" />
+              Equipment CSV
+            </button>
+            <button className="ghost-action" onClick={() => downloadCsv('inventory.csv', inventory)} type="button">
+              <Icon name="download" />
+              Inventory CSV
+            </button>
+            <button className="ghost-action" onClick={() => downloadCsv('lockers.csv', lockers)} type="button">
+              <Icon name="download" />
+              Lockers CSV
+            </button>
+            <button className="ghost-action" onClick={() => downloadCsv('payments.csv', payments)} type="button">
+              <Icon name="download" />
+              Payments CSV
+            </button>
             <button className="ghost-action" onClick={() => downloadCsv('enquiries.csv', contactRequests)} type="button">
               <Icon name="download" />
               Enquiries CSV
@@ -48,10 +86,6 @@ function DashboardSection({ clients, contactRequests, leads, payments, trainers,
             <button className="ghost-action" onClick={() => downloadCsv('leads.csv', leads)} type="button">
               <Icon name="download" />
               Leads CSV
-            </button>
-            <button className="ghost-action" onClick={() => downloadCsv('payments.csv', payments)} type="button">
-              <Icon name="download" />
-              Payments CSV
             </button>
           </div>
         </div>

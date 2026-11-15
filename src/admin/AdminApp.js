@@ -7,6 +7,7 @@ import DashboardSection from './sections/DashboardSection';
 import EnquiriesSection from './sections/EnquiriesSection';
 import SettingsSection from './sections/SettingsSection';
 import ProfileSection from './sections/ProfileSection';
+import DeveloperSection from './sections/DeveloperSection';
 import { ToastProvider } from './components/Toast';
 import './admin.css';
 
@@ -25,6 +26,12 @@ function AdminAppInner({
   attendance,
   payments,
   progressRecords,
+  memberships = [],
+  lockers = [],
+  equipment = [],
+  inventory = [],
+  dietWorkouts = [],
+  announcements = [],
   adminUser,
   onAdminLogout,
   updateAdminProfile,
@@ -53,6 +60,18 @@ function AdminAppInner({
   deletePaymentRecord,
   saveProgressRecord,
   deleteProgressRecord,
+  saveMembershipRecord,
+  deleteMembershipRecord,
+  saveLockerRecord,
+  deleteLockerRecord,
+  saveEquipmentRecord,
+  deleteEquipmentRecord,
+  saveInventoryRecord,
+  deleteInventoryRecord,
+  saveDietWorkoutRecord,
+  deleteDietWorkoutRecord,
+  saveAnnouncementRecord,
+  deleteAnnouncementRecord,
 }) {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -78,6 +97,12 @@ function AdminAppInner({
     attendance: { items: attendance, onSaveRecord: saveAttendanceRecord, onDeleteRecord: deleteAttendanceRecord },
     payments: { items: payments, onSaveRecord: savePaymentRecord, onDeleteRecord: deletePaymentRecord },
     progress: { items: progressRecords, onSaveRecord: saveProgressRecord, onDeleteRecord: deleteProgressRecord },
+    memberships: { items: memberships, onSaveRecord: saveMembershipRecord, onDeleteRecord: deleteMembershipRecord },
+    lockers: { items: lockers, onSaveRecord: saveLockerRecord, onDeleteRecord: deleteLockerRecord },
+    equipment: { items: equipment, onSaveRecord: saveEquipmentRecord, onDeleteRecord: deleteEquipmentRecord },
+    inventory: { items: inventory, onSaveRecord: saveInventoryRecord, onDeleteRecord: deleteInventoryRecord },
+    dietWorkouts: { items: dietWorkouts, onSaveRecord: saveDietWorkoutRecord, onDeleteRecord: deleteDietWorkoutRecord },
+    announcements: { items: announcements, onSaveRecord: saveAnnouncementRecord, onDeleteRecord: deleteAnnouncementRecord },
   };
 
   const convertRequestToLead = async (request) => {
@@ -169,7 +194,15 @@ function AdminAppInner({
               navigateToSection={goToSection}
               payments={payments}
               trainers={trainers}
+              memberships={memberships}
+              equipment={equipment}
+              lockers={lockers}
+              inventory={inventory}
             />
+          )}
+
+          {activeSection === 'developer' && (
+            <DeveloperSection />
           )}
 
           {activeSection === 'contacts' && (

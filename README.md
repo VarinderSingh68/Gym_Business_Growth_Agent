@@ -1,24 +1,29 @@
-# Getting Started with Create React App
+# Volt Fitness Application
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Full-stack gym management and marketing web application built with React and Node.js.
 
-## Deploying to Render
+## Architecture & Running the Project
 
-This app deploys as a **single Render Web Service** — the Node server in
-`server/index.js` serves the built React app *and* the `/api/*` routes from
-the same origin, so there's no separate static site and no cross-origin
-CORS setup to manage.
+The application consists of a React frontend and a Node.js API backend with local JSON data persistence.
 
-- **Build Command:** `npm install && npm run build`
-- **Start Command:** `npm run server`
-- **Environment variables:** see `server/.env.example` for the full list
-  (`ADMIN_USERNAME`, `ADMIN_PASSWORD`, `FRONTEND_URL`, `GOOGLE_CLIENT_ID`,
-  `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `SMTP_*`, `NODE_ENV=production`).
-  Do **not** set `PORT` — Render assigns it and the server reads it automatically.
-- **Data persistence:** `server/data/*.json` (admin credentials, member
-  accounts, gym content) lives on local disk. Without a Render persistent
-  Disk attached at `server/data`, this resets on every deploy/restart —
-  attach a Disk if member accounts need to survive redeploys.
+### Configuration
+Configure your environment variables in `server/.env` based on `server/.env.example`.
+
+### Running Locally
+You can run both the API server and the React frontend concurrently:
+
+- Run via start script:
+  ```sh
+  ./start
+  ```
+- Or run separately:
+  ```sh
+  # Terminal 1: Backend API (runs on http://127.0.0.1:4000)
+  npm run server
+
+  # Terminal 2: React Frontend (runs on http://localhost:3000)
+  npm start
+  ```
 
 ## Available Scripts
 

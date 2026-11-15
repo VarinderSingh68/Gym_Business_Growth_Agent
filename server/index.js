@@ -7,11 +7,12 @@ const nodemailer = require('nodemailer');
 loadEnvFile(path.join(__dirname, '.env'));
 
 const PORT = Number(process.env.PORT || process.env.API_PORT || 4000);
-const HOST = process.env.HOST || '0.0.0.0';
+const HOST = process.env.HOST || '127.0.0.1';
 const DATA_DIR = path.join(__dirname, 'data');
 const STORE_PATH = path.join(DATA_DIR, 'store.json');
 const ADMIN_PATH = path.join(DATA_DIR, 'admin.json');
 const USERS_PATH = path.join(DATA_DIR, 'users.json');
+const AUDIT_LOG_PATH = path.join(DATA_DIR, 'audit_log.json');
 const BUILD_DIR = path.join(__dirname, '..', 'build');
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -37,6 +38,70 @@ const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 5 * 60 * 1000;
 const HASH_ITERATIONS = 310000;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_AUDIT_LOGS = 500;
+const CHATBOT_WINDOW_MS = 60 * 1000;
+const CHATBOT_MAX_PER_MIN = 30;
+
+let auditLogs = [];
+const chatbotRateLimit = new Map();
+
+function checkChatbotRateLimit(ip) {
+  const now = Date.now();
+  const entry = chatbotRateLimit.get(ip) || { count: 0, resetAt: now + CHATBOT_WINDOW_MS };
+  if (now > entry.resetAt) {
+    entry.count = 0;
+    entry.resetAt = now + CHATBOT_WINDOW_MS;
+  }
+  entry.count += 1;
+  chatbotRateLimit.set(ip, entry);
+  return entry.count <= CHATBOT_MAX_PER_MIN;
+}
+
+function loadAuditLogs() {
+  try {
+    if (fs.existsSync(AUDIT_LOG_PATH)) {
+      const data = JSON.parse(fs.readFileSync(AUDIT_LOG_PATH, 'utf8'));
+      if (Array.isArray(data)) {
+        auditLogs = data.slice(0, MAX_AUDIT_LOGS);
+      }
+    }
+  } catch (err) {
+    auditLogs = [];
+  }
+}
+
+function addAuditLog({ ip = '127.0.0.1', user = 'system', action = 'EVENT', resource = '', status = 'INFO', details = '' }) {
+  const entry = {
+    id: createId('audit'),
+    timestamp: new Date().toISOString(),
+    ip,
+    user,
+    action,
+    resource,
+    status,
+    details,
+  };
+  auditLogs.unshift(entry);
+  if (auditLogs.length > MAX_AUDIT_LOGS) {
+    auditLogs = auditLogs.slice(0, MAX_AUDIT_LOGS);
+  }
+  try {
+    fs.writeFileSync(AUDIT_LOG_PATH, JSON.stringify(auditLogs, null, 2));
+  } catch (err) {
+    console.error('Failed to persist audit log:', err.message);
+  }
+  return entry;
+}
+
+function getFileSizeKb(filePath) {
+  try {
+    if (fs.existsSync(filePath)) {
+      const stats = fs.statSync(filePath);
+      return (stats.size / 1024).toFixed(1);
+    }
+  } catch (err) {}
+  return '0.0';
+}
 
 const sessions = new Map();
 const loginLocks = new Map();
@@ -139,6 +204,228 @@ const defaultStore = {
   attendance: [],
   payments: [],
   progress: [],
+  equipment: [
+    {
+      id: 'equip-matrix-t75-1',
+      name: 'Matrix T75 Treadmill #1',
+      category: 'Cardio',
+      serialNumber: 'MTX-75-0041',
+      location: 'Engine Room / Cardio Wall',
+      purchaseDate: '2024-03-15',
+      lastServiceDate: '2026-09-10',
+      nextServiceDate: '2026-12-10',
+      status: 'Operational',
+      condition: 'Good',
+      notes: 'Drive belt inspected. No motor issues detected.',
+    },
+    {
+      id: 'equip-eleiko-rack-1',
+      name: 'Eleiko Pro Power Rack #1',
+      category: 'Strength Machines',
+      serialNumber: 'ELK-PR-8820',
+      location: 'Strength Deck / Platform 1',
+      purchaseDate: '2023-11-20',
+      lastServiceDate: '2026-10-01',
+      nextServiceDate: '2027-04-01',
+      status: 'Operational',
+      condition: 'Excellent',
+      notes: 'J-cups and safety pins secured.',
+    },
+    {
+      id: 'equip-concept2-rower-2',
+      name: 'Concept2 RowErg #2',
+      category: 'Cardio',
+      serialNumber: 'C2-ROW-3391',
+      location: 'Engine Room',
+      purchaseDate: '2024-01-10',
+      lastServiceDate: '2026-08-15',
+      nextServiceDate: '2026-11-25',
+      status: 'Needs Maintenance',
+      condition: 'Fair',
+      notes: 'Chain requires oiling and damper calibration.',
+    },
+    {
+      id: 'equip-cable-column-1',
+      name: 'LifeFitness Dual Cable Column',
+      category: 'Strength Machines',
+      serialNumber: 'LF-DCC-901',
+      location: 'Strength Deck',
+      purchaseDate: '2024-05-18',
+      lastServiceDate: '2026-07-20',
+      nextServiceDate: '2026-11-20',
+      status: 'Under Repair',
+      condition: 'Fair',
+      notes: 'Left pulley cable fraying; replacement cable on order.',
+    },
+  ],
+  lockers: [
+    {
+      id: 'locker-101',
+      lockerNumber: '101',
+      zone: "Men's Locker Room",
+      size: 'Full Height',
+      assignedClient: 'Aria Shaw',
+      pinOrKey: '4921',
+      expiresAt: '2026-12-31',
+      status: 'Occupied',
+      notes: 'Complimentary locker with Standard plan.',
+    },
+    {
+      id: 'locker-102',
+      lockerNumber: '102',
+      zone: "Men's Locker Room",
+      size: 'Full Height',
+      assignedClient: 'Unassigned',
+      pinOrKey: '1020',
+      expiresAt: '',
+      status: 'Available',
+      notes: 'Cleaned and sanitized.',
+    },
+    {
+      id: 'locker-201',
+      lockerNumber: '201',
+      zone: "Women's Locker Room",
+      size: 'Full Height',
+      assignedClient: 'Unassigned',
+      pinOrKey: '2010',
+      expiresAt: '',
+      status: 'Available',
+      notes: 'Ready for assignment.',
+    },
+    {
+      id: 'locker-vip-01',
+      lockerNumber: 'VIP-01',
+      zone: 'VIP Executive Suite',
+      size: 'Full Height',
+      assignedClient: 'Aria Shaw',
+      pinOrKey: '8888',
+      expiresAt: '2027-05-01',
+      status: 'Occupied',
+      notes: 'Dedicated towel service and laundry hamper.',
+    },
+    {
+      id: 'locker-105',
+      lockerNumber: '105',
+      zone: "Men's Locker Room",
+      size: 'Half Height',
+      assignedClient: 'Unassigned',
+      pinOrKey: '',
+      expiresAt: '',
+      status: 'Maintenance',
+      notes: 'Electronic keypad battery replacement required.',
+    },
+  ],
+  memberships: [
+    {
+      id: 'sub-aria-1',
+      clientName: 'Aria Shaw',
+      plan: 'Standard',
+      startDate: '2026-05-01',
+      endDate: '2027-05-01',
+      status: 'Active',
+      autoRenew: 'Yes',
+      paymentMethod: 'Credit Card',
+      notes: 'Annual upfront membership with full access.',
+    },
+    {
+      id: 'sub-demo-2',
+      clientName: 'Walk-in',
+      plan: 'Basic',
+      startDate: '2026-10-01',
+      endDate: '2026-11-01',
+      status: 'Pending Renewal',
+      autoRenew: 'No',
+      paymentMethod: 'Direct Debit',
+      notes: 'Monthly pass expiring soon.',
+    },
+  ],
+  inventory: [
+    {
+      id: 'inv-whey-choco',
+      itemName: 'Volt Pure Whey Isolate (Chocolate)',
+      sku: 'VOLT-WHEY-01',
+      category: 'Supplements',
+      price: '55',
+      cost: '32',
+      quantity: '28',
+      minStockAlert: '6',
+      status: 'In Stock',
+      supplier: 'Apex Nutrition Labs',
+      notes: '2kg tubs. Best-before 2028.',
+    },
+    {
+      id: 'inv-preworkout',
+      itemName: 'Ignition Pre-Workout (Sour Apple)',
+      sku: 'VOLT-PRE-02',
+      category: 'Supplements',
+      price: '42',
+      cost: '22',
+      quantity: '4',
+      minStockAlert: '8',
+      status: 'Low Stock',
+      supplier: 'Apex Nutrition Labs',
+      notes: 'Reorder placed with supplier on Monday.',
+    },
+    {
+      id: 'inv-recovery-drink',
+      itemName: 'Electrolyte Aminos Ready-to-Drink',
+      sku: 'VOLT-RTD-03',
+      category: 'Beverages',
+      price: '4.50',
+      cost: '1.80',
+      quantity: '64',
+      minStockAlert: '12',
+      status: 'In Stock',
+      supplier: 'HydroFit Supply',
+      notes: 'Stored in Fuel Bar cold fridge.',
+    },
+    {
+      id: 'inv-lifting-straps',
+      itemName: 'Volt Heavy Duty Figure-8 Straps',
+      sku: 'VOLT-ACC-04',
+      category: 'Accessories',
+      price: '24',
+      cost: '10',
+      quantity: '15',
+      minStockAlert: '5',
+      status: 'In Stock',
+      supplier: 'IronGrip Gear',
+      notes: 'Merch pro-shop display rack.',
+    },
+  ],
+  dietWorkouts: [
+    {
+      id: 'dw-aria-shaw',
+      clientName: 'Aria Shaw',
+      trainer: 'Mason Cruz',
+      targetGoal: 'Strength & Conditioning',
+      dailyCalories: '2100 kcal',
+      macroSplit: 'P: 140g | C: 210g | F: 60g',
+      workoutSplit: '4-Day Upper/Lower + 1 Engine Conditioning',
+      status: 'Active',
+      notes: 'Strict form on deadlifts; deload scheduled in week 6.',
+    },
+  ],
+  announcements: [
+    {
+      id: 'ann-neon-challenge',
+      title: 'Winter Neon Strength & Conditioning Challenge',
+      category: 'Event / Challenge',
+      targetAudience: 'All Members',
+      publishDate: '2026-11-15',
+      status: 'Active',
+      content: 'Sign-ups open for our 6-week progressive team fitness challenge. Prizes for PR improvements and top consistency.',
+    },
+    {
+      id: 'ann-recovery-hours',
+      title: 'Recovery Bay Extended Weekend Hours',
+      category: 'Facility Update',
+      targetAudience: 'All Members',
+      publishDate: '2026-11-01',
+      status: 'Active',
+      content: 'The sauna and cold recovery pools now remain open until 9:00 PM on Saturdays and Sundays.',
+    },
+  ],
 };
 
 const resources = {
@@ -155,6 +442,12 @@ const resources = {
   attendance: { key: 'attendance', authRead: true },
   payments: { key: 'payments', authRead: true },
   progress: { key: 'progress', authRead: true },
+  equipment: { key: 'equipment', authRead: true },
+  lockers: { key: 'lockers', authRead: true },
+  memberships: { key: 'memberships', authRead: true },
+  inventory: { key: 'inventory', authRead: true },
+  dietWorkouts: { key: 'dietWorkouts', authRead: true },
+  announcements: { key: 'announcements', authRead: false },
 };
 
 ensureDataFiles();
@@ -286,11 +579,197 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url.pathname === '/api/chatbot' && req.method === 'POST') {
+      const ip = getClientIp(req);
+      if (!checkChatbotRateLimit(ip)) {
+        sendJson(req, res, 429, { message: 'Too many requests. Please slow down.' }, commonHeaders);
+        return;
+      }
       const body = await readJsonBody(req);
       const message = body.message || '';
       // A simple echo response for now
       const reply = `I hear you! You said: "${message}"`;
       sendJson(req, res, 200, { reply }, commonHeaders);
+      return;
+    }
+
+    // Developer & System Diagnostics (Admin only)
+    if (url.pathname.startsWith('/api/dev/')) {
+      const session = getSession(req);
+      if (!session) {
+        sendJson(req, res, 401, { message: 'Admin login required.' }, commonHeaders);
+        return;
+      }
+
+      if (url.pathname === '/api/dev/health' && req.method === 'GET') {
+        const mem = process.memoryUsage();
+        const store = readStore();
+        const counts = Object.keys(store).reduce((acc, k) => {
+          acc[k] = Array.isArray(store[k]) ? store[k].length : 0;
+          return acc;
+        }, {});
+        counts.users = readUsers().length;
+
+        const healthData = {
+          uptime: Math.floor(process.uptime()),
+          nodeVersion: process.version,
+          platform: process.platform,
+          arch: process.arch,
+          pid: process.pid,
+          memory: {
+            rssMb: (mem.rss / (1024 * 1024)).toFixed(2),
+            heapUsedMb: (mem.heapUsed / (1024 * 1024)).toFixed(2),
+            heapTotalMb: (mem.heapTotal / (1024 * 1024)).toFixed(2),
+          },
+          files: {
+            storeSizeKb: getFileSizeKb(STORE_PATH),
+            usersSizeKb: getFileSizeKb(USERS_PATH),
+            adminSizeKb: getFileSizeKb(ADMIN_PATH),
+            auditLogSizeKb: getFileSizeKb(AUDIT_LOG_PATH),
+          },
+          counts,
+        };
+        sendJson(req, res, 200, healthData, commonHeaders);
+        return;
+      }
+
+      if (url.pathname === '/api/dev/audit-logs' && req.method === 'GET') {
+        const activeLocks = [];
+        const now = Date.now();
+        for (const [ip, lock] of loginLocks.entries()) {
+          if (lock.lockedUntil && lock.lockedUntil > now) {
+            activeLocks.push({ ip, minutesLeft: Math.ceil((lock.lockedUntil - now) / 60000) });
+          }
+        }
+        sendJson(req, res, 200, { logs: auditLogs, lockedIps: activeLocks }, commonHeaders);
+        return;
+      }
+
+      if (url.pathname === '/api/dev/unlock-ip' && req.method === 'POST') {
+        const body = await readJsonBody(req);
+        const ip = body.ip;
+        if (ip) {
+          loginLocks.delete(ip);
+          userLoginLocks.delete(ip);
+          addAuditLog({ ip: getClientIp(req), user: session.username, action: 'UNLOCK_IP', resource: 'security', status: 'SUCCESS', details: `Admin unlocked IP address ${ip}` });
+          sendJson(req, res, 200, { ok: true, message: `IP ${ip} unlocked successfully.` }, commonHeaders);
+        } else {
+          sendJson(req, res, 400, { message: 'IP address is required.' }, commonHeaders);
+        }
+        return;
+      }
+
+      if (url.pathname === '/api/dev/clear-audit-logs' && req.method === 'POST') {
+        auditLogs = [];
+        try { fs.writeFileSync(AUDIT_LOG_PATH, '[]'); } catch (e) {}
+        addAuditLog({ ip: getClientIp(req), user: session.username, action: 'CLEAR_AUDIT_LOGS', resource: 'security', status: 'WARNING', details: 'Audit trail cleared by admin.' });
+        sendJson(req, res, 200, { ok: true }, commonHeaders);
+        return;
+      }
+
+      if (url.pathname === '/api/dev/backup' && req.method === 'GET') {
+        const backup = {
+          version: '1.0',
+          exportedAt: new Date().toISOString(),
+          store: readStore(),
+          users: readUsers().map(u => ({ id: u.id, name: u.name, email: u.email, provider: u.provider, createdAt: u.createdAt })),
+        };
+        addAuditLog({ ip: getClientIp(req), user: session.username, action: 'EXPORT_BACKUP', resource: 'database', status: 'SUCCESS', details: 'Full JSON database backup downloaded.' });
+        sendJson(req, res, 200, backup, commonHeaders);
+        return;
+      }
+
+      if (url.pathname === '/api/dev/restore' && req.method === 'POST') {
+        const body = await readJsonBody(req);
+        if (!body.store || typeof body.store !== 'object') {
+          sendJson(req, res, 400, { message: 'Invalid backup structure. Missing store object.' }, commonHeaders);
+          return;
+        }
+        writeStore(body.store);
+        addAuditLog({ ip: getClientIp(req), user: session.username, action: 'RESTORE_BACKUP', resource: 'database', status: 'SUCCESS', details: 'Database successfully restored from JSON backup.' });
+        sendJson(req, res, 200, { ok: true, message: 'Database successfully restored!' }, commonHeaders);
+        return;
+      }
+
+      if (url.pathname === '/api/dev/reset-factory' && req.method === 'POST') {
+        writeStore(defaultStore);
+        addAuditLog({ ip: getClientIp(req), user: session.username, action: 'FACTORY_RESET', resource: 'database', status: 'WARNING', details: 'Database reset to factory default seed data.' });
+        sendJson(req, res, 200, { ok: true, message: 'Database reset to factory default state.' }, commonHeaders);
+        return;
+      }
+
+      if (url.pathname === '/api/dev/env-diagnostics' && req.method === 'GET') {
+        const admin = readAdminCredentials();
+        const defaultPasswordActive = admin && verifyPassword('1234', admin);
+        const smtpConfigured = Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
+        const cloudinaryConfigured = Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
+        const googleConfigured = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+
+        const diag = {
+          defaultPasswordActive,
+          smtp: {
+            host: process.env.SMTP_HOST || 'smtp.gmail.com',
+            port: process.env.SMTP_PORT || '465',
+            user: process.env.SMTP_USER || '',
+            configured: smtpConfigured,
+          },
+          cloudinary: {
+            cloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
+            folder: process.env.CLOUDINARY_FOLDER || 'volt-fitness',
+            apiKeyMasked: process.env.CLOUDINARY_API_KEY ? `${process.env.CLOUDINARY_API_KEY.slice(0, 4)}••••` : '',
+            configured: cloudinaryConfigured,
+          },
+          google: {
+            configured: googleConfigured,
+            redirectUri: process.env.GOOGLE_REDIRECT_URI || '',
+          },
+        };
+        sendJson(req, res, 200, diag, commonHeaders);
+        return;
+      }
+
+      if (url.pathname === '/api/dev/test-email' && req.method === 'POST') {
+        const body = await readJsonBody(req);
+        const to = body.to || process.env.MAIL_FROM || process.env.SMTP_USER;
+        if (!to) {
+          sendJson(req, res, 400, { message: 'No recipient email configured.' }, commonHeaders);
+          return;
+        }
+        const transport = getMailTransport();
+        if (!transport) {
+          sendJson(req, res, 400, { message: 'SMTP credentials missing from environment.' }, commonHeaders);
+          return;
+        }
+        try {
+          await transport.verify();
+          await transport.sendMail({
+            from: `"Volt Fitness Diagnostic" <${process.env.MAIL_FROM || process.env.SMTP_USER}>`,
+            to,
+            subject: 'Volt Fitness - SMTP Health Check Diagnostic',
+            text: `This is an automated diagnostic email from Volt Fitness system telemetry. SMTP connection verified at ${new Date().toISOString()}.`,
+          });
+          addAuditLog({ ip: getClientIp(req), user: session.username, action: 'TEST_EMAIL', resource: 'integrations', status: 'SUCCESS', details: `Diagnostic email sent to ${to}` });
+          sendJson(req, res, 200, { ok: true, message: `Diagnostic email successfully sent to ${to}!` }, commonHeaders);
+        } catch (err) {
+          addAuditLog({ ip: getClientIp(req), user: session.username, action: 'TEST_EMAIL', resource: 'integrations', status: 'FAILED', details: `SMTP error: ${err.message}` });
+          sendJson(req, res, 500, { message: `SMTP error: ${err.message}` }, commonHeaders);
+        }
+        return;
+      }
+
+      if (url.pathname === '/api/dev/test-cloudinary' && req.method === 'POST') {
+        const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+        const apiKey = process.env.CLOUDINARY_API_KEY;
+        const apiSecret = process.env.CLOUDINARY_API_SECRET;
+        if (!cloudName || !apiKey || !apiSecret) {
+          sendJson(req, res, 400, { message: 'Cloudinary credentials missing in .env.' }, commonHeaders);
+          return;
+        }
+        addAuditLog({ ip: getClientIp(req), user: session.username, action: 'TEST_CLOUDINARY', resource: 'integrations', status: 'SUCCESS', details: `Cloudinary verified for cloud "${cloudName}".` });
+        sendJson(req, res, 200, { ok: true, message: `Cloudinary credentials verified for cloud "${cloudName}".`, folder: process.env.CLOUDINARY_FOLDER || 'volt-fitness' }, commonHeaders);
+        return;
+      }
+
+      sendJson(req, res, 404, { message: 'Developer endpoint not found.' }, commonHeaders);
       return;
     }
 
@@ -351,6 +830,14 @@ async function handleResource(req, res, headers, resourceName, id) {
     });
     store[config.key] = [item, ...items];
     writeStore(store);
+    addAuditLog({
+      ip: getClientIp(req),
+      user: session?.username || 'system',
+      action: `CREATE_${resourceName.toUpperCase()}`,
+      resource: resourceName,
+      status: 'SUCCESS',
+      details: `Created record ${item.id}`,
+    });
     sendJson(req, res, 200, { [config.key]: store[config.key] }, headers);
     return;
   }
@@ -366,6 +853,14 @@ async function handleResource(req, res, headers, resourceName, id) {
     nextItems[index] = normalizeItem(resourceName, { ...body, id });
     store[config.key] = nextItems;
     writeStore(store);
+    addAuditLog({
+      ip: getClientIp(req),
+      user: session?.username || 'system',
+      action: `UPDATE_${resourceName.toUpperCase()}`,
+      resource: resourceName,
+      status: 'SUCCESS',
+      details: `Updated record ${id}`,
+    });
     sendJson(req, res, 200, { [config.key]: store[config.key] }, headers);
     return;
   }
@@ -373,6 +868,14 @@ async function handleResource(req, res, headers, resourceName, id) {
   if (req.method === 'DELETE' && id) {
     store[config.key] = items.filter((item) => item.id !== id);
     writeStore(store);
+    addAuditLog({
+      ip: getClientIp(req),
+      user: session?.username || 'system',
+      action: `DELETE_${resourceName.toUpperCase()}`,
+      resource: resourceName,
+      status: 'SUCCESS',
+      details: `Deleted record ${id}`,
+    });
     sendJson(req, res, 200, { [config.key]: store[config.key] }, headers);
     return;
   }
@@ -395,16 +898,40 @@ function login(req, usernameInput, password) {
     loginLocks.delete(ip);
     const token = crypto.randomBytes(32).toString('hex');
     sessions.set(token, { username: admin.username, expiresAt: Date.now() + SESSION_TTL_MS });
+    addAuditLog({
+      ip,
+      user: admin.username,
+      action: 'ADMIN_LOGIN',
+      resource: 'auth',
+      status: 'SUCCESS',
+      details: 'Administrator logged in successfully.',
+    });
     return { ok: true, token, username: admin.username };
   }
 
   const attempts = lock.attempts + 1;
   if (attempts >= MAX_LOGIN_ATTEMPTS) {
     loginLocks.set(ip, { attempts: 0, lockedUntil: Date.now() + LOCK_DURATION_MS });
+    addAuditLog({
+      ip,
+      user: username,
+      action: 'IP_LOCKED',
+      resource: 'security',
+      status: 'ALERT',
+      details: 'Admin login locked for 5 minutes due to multiple failed password attempts.',
+    });
     return { ok: false, status: 429, message: 'Too many failed attempts. Admin login is locked for 5 minutes.' };
   }
 
   loginLocks.set(ip, { attempts, lockedUntil: 0 });
+  addAuditLog({
+    ip,
+    user: username,
+    action: 'ADMIN_LOGIN_FAILED',
+    resource: 'auth',
+    status: 'WARNING',
+    details: `Failed admin login attempt (${attempts}/${MAX_LOGIN_ATTEMPTS})`,
+  });
   return { ok: false, status: 401, message: `Invalid username or password. ${MAX_LOGIN_ATTEMPTS - attempts} attempts left.` };
 }
 
@@ -434,6 +961,13 @@ function updateAdminProfile(body) {
   writeJson(ADMIN_PATH, {
     ...nextAdmin,
     updatedAt: new Date().toISOString(),
+  });
+  addAuditLog({
+    user: username,
+    action: 'ADMIN_PROFILE_UPDATE',
+    resource: 'auth',
+    status: 'SUCCESS',
+    details: `Admin profile updated. Password changed: ${Boolean(newPassword)}`,
   });
   return { username, message: 'Admin profile updated. Please log in again.' };
 }
@@ -468,6 +1002,13 @@ function registerUser(body) {
   };
   users.push(user);
   writeUsers(users);
+  addAuditLog({
+    user: email,
+    action: 'USER_REGISTER',
+    resource: 'users',
+    status: 'SUCCESS',
+    details: `Member account registered: ${name} (${email})`,
+  });
 
   const token = crypto.randomBytes(32).toString('hex');
   userSessions.set(token, { userId: user.id, name: user.name, email: user.email, expiresAt: Date.now() + USER_SESSION_TTL_MS });
@@ -495,16 +1036,40 @@ function loginUser(req, emailInput, password) {
     userLoginLocks.delete(ip);
     const token = crypto.randomBytes(32).toString('hex');
     userSessions.set(token, { userId: user.id, name: user.name, email: user.email, expiresAt: Date.now() + USER_SESSION_TTL_MS });
+    addAuditLog({
+      ip,
+      user: email,
+      action: 'USER_LOGIN',
+      resource: 'users',
+      status: 'SUCCESS',
+      details: `Member logged in: ${user.name}`,
+    });
     return { ok: true, token, user };
   }
 
   const attempts = lock.attempts + 1;
   if (attempts >= MAX_LOGIN_ATTEMPTS) {
     userLoginLocks.set(ip, { attempts: 0, lockedUntil: Date.now() + LOCK_DURATION_MS });
+    addAuditLog({
+      ip,
+      user: email,
+      action: 'USER_IP_LOCKED',
+      resource: 'security',
+      status: 'ALERT',
+      details: 'Member login locked for 5 minutes due to multiple failed password attempts.',
+    });
     return { ok: false, status: 429, message: 'Too many failed attempts. Login is locked for 5 minutes.' };
   }
 
   userLoginLocks.set(ip, { attempts, lockedUntil: 0 });
+  addAuditLog({
+    ip,
+    user: email,
+    action: 'USER_LOGIN_FAILED',
+    resource: 'users',
+    status: 'WARNING',
+    details: `Failed user login attempt (${attempts}/${MAX_LOGIN_ATTEMPTS})`,
+  });
   return { ok: false, status: 401, message: `Invalid email or password. ${MAX_LOGIN_ATTEMPTS - attempts} attempts left.` };
 }
 
@@ -826,7 +1391,8 @@ function readJsonBody(req) {
         return;
       }
       try {
-        resolve(JSON.parse(body));
+        const parsed = JSON.parse(body);
+        resolve(sanitizePayload(parsed));
       } catch (error) {
         reject(Object.assign(new Error('Invalid JSON body.'), { status: 400 }));
       }
@@ -835,10 +1401,36 @@ function readJsonBody(req) {
   });
 }
 
+function sanitizePayload(obj) {
+  if (!obj || typeof obj !== 'object') {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizePayload);
+  }
+  const clean = Object.create(null);
+  for (const [key, value] of Object.entries(obj)) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      continue;
+    }
+    clean[key] = sanitizePayload(value);
+  }
+  return { ...clean };
+}
+
+function applySecurityHeaders(res) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '0');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+}
+
 function sendJson(req, res, status, data, headers = {}) {
+  applySecurityHeaders(res);
   res.writeHead(status, {
     'Content-Type': 'application/json',
-    'X-Content-Type-Options': 'nosniff',
     'Cache-Control': 'no-store',
     ...headers,
   });
@@ -850,13 +1442,15 @@ function sendJson(req, res, status, data, headers = {}) {
 }
 
 function serveStatic(req, res, url) {
+  applySecurityHeaders(res);
   if (!fs.existsSync(BUILD_DIR)) {
     res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Frontend build not found. Run "npm run build" before starting the server in production.');
     return;
   }
 
-  const requestedPath = path.normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, '');
+  const rawPath = decodeURIComponent(url.pathname).replace(/\0/g, '');
+  const requestedPath = path.normalize(rawPath).replace(/^(\.\.[/\\])+/, '');
   let filePath = path.join(BUILD_DIR, requestedPath);
 
   if (!filePath.startsWith(BUILD_DIR)) {
@@ -927,6 +1521,10 @@ function ensureDataFiles() {
   if (!fs.existsSync(USERS_PATH)) {
     writeJson(USERS_PATH, []);
   }
+  if (!fs.existsSync(AUDIT_LOG_PATH)) {
+    writeJson(AUDIT_LOG_PATH, []);
+  }
+  loadAuditLogs();
 }
 
 function readStore() {

@@ -1,3 +1,5 @@
+import { apiUrl } from '../../lib/api';
+
 class ActionProvider {
   constructor(createChatBotMessage, setStateFunc, createClientMessage) {
     this.createChatBotMessage = createChatBotMessage;
@@ -10,7 +12,7 @@ class ActionProvider {
     this.addMessageToState(botMessage);
 
     try {
-      const response = await fetch('http://127.0.0.1:4000/api/chatbot', {
+      const response = await fetch(apiUrl('/api/chatbot'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

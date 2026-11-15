@@ -1367,12 +1367,15 @@ function clearSessionCookie() {
 }
 
 function buildSessionCookie(name, token, ttlMs) {
-  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  return `${name}=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${Math.floor(ttlMs / 1000)}${secure}`;
+  const sameSite = process.env.COOKIE_SAMESITE || (process.env.FRONTEND_URL ? 'None' : 'Lax');
+  const secure = (process.env.NODE_ENV === 'production' || sameSite === 'None') ? '; Secure' : '';
+  return `${name}=${encodeURIComponent(token)}; HttpOnly; SameSite=${sameSite}; Path=/; Max-Age=${Math.floor(ttlMs / 1000)}${secure}`;
 }
 
 function buildClearCookie(name) {
-  return `${name}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;
+  const sameSite = process.env.COOKIE_SAMESITE || (process.env.FRONTEND_URL ? 'None' : 'Lax');
+  const secure = (process.env.NODE_ENV === 'production' || sameSite === 'None') ? '; Secure' : '';
+  return `${name}=; HttpOnly; SameSite=${sameSite}; Path=/; Max-Age=0${secure}`;
 }
 
 function readJsonBody(req) {

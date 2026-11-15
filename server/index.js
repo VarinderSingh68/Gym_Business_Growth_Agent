@@ -7,7 +7,7 @@ const nodemailer = require('nodemailer');
 loadEnvFile(path.join(__dirname, '.env'));
 
 const PORT = Number(process.env.PORT || process.env.API_PORT || 4000);
-const HOST = process.env.HOST || '127.0.0.1';
+const HOST = process.env.HOST || (process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1');
 const DATA_DIR = path.join(__dirname, 'data');
 const STORE_PATH = path.join(DATA_DIR, 'store.json');
 const ADMIN_PATH = path.join(DATA_DIR, 'admin.json');

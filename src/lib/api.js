@@ -2,6 +2,9 @@ export function apiUrl(path) {
   if (typeof window === 'undefined') {
     return path;
   }
+  if (process.env.REACT_APP_API_URL) {
+    return `${process.env.REACT_APP_API_URL.replace(/\/$/, '')}${path}`;
+  }
   // When running the React development server, NODE_ENV is 'development'.
   // In this mode, we assume the API server is on port 4000.
   const isDev = process.env.NODE_ENV === 'development';
